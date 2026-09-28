@@ -1,0 +1,124 @@
+﻿.hero {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: white;
+    padding: 80px 40px;
+    text-align: center;
+    border-radius: 0 0 24px 24px;
+    margin-bottom: 48px;
+}
+
+.hero-content h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin-bottom: 16px;
+    letter-spacing: -1px;
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    opacity: 0.9;
+    max-width: 600px;
+    margin: 0 auto 32px;
+}
+
+.btn-cta {
+    display: inline-block;
+    background: white;
+    color: #4f46e5;
+    padding: 14px 32px;
+    border-radius: 999px;
+    font-weight: 700;
+    text-decoration: none;
+    margin: 0 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+}
+
+.btn-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    color: #4338ca;
+}
+
+.btn-cta-secondary {
+    display: inline-block;
+    background: transparent;
+    color: white;
+    padding: 14px 32px;
+    border: 2px solid white;
+    border-radius: 999px;
+    font-weight: 700;
+    text-decoration: none;
+    margin: 0 8px;
+    transition: background 0.15s ease;
+}
+
+.btn-cta-secondary:hover {
+    background: rgba(255,255,255,0.15);
+    color: white;
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+    max-width: 1000px;
+    margin: 0 auto 64px;
+    padding: 0 24px;
+}
+
+.feature-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 32px 24px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: transform 0.15s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+}
+
+.feature-card h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #1f2937;
+}
+
+.feature-card p {
+    color: #6b7280;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.cta-footer {
+    text-align: center;
+    padding: 48px 24px 80px;
+}
+
+.cta-footer h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: #1f2937;
+}
+
+@media (max-width: 600px) {
+    .hero-content h1 {
+        font-size: 2.5rem;
+    }
+
+    .btn-cta, .btn-cta-secondary {
+        display: block;
+        margin: 12px auto;
+        max-width: 260px;
+    }
+}

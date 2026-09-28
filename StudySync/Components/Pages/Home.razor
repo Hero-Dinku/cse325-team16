@@ -1,7 +1,51 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
 
-<PageTitle>Home</PageTitle>
+<PageTitle>StudySync - Collaborate. Track. Succeed.</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="hero">
+    <div class="hero-content">
+        <h1>StudySync</h1>
+        <p class="hero-subtitle">Keep your study groups organized, accountable, and on track — together.</p>
 
-Welcome to your new app.
+        <AuthorizeView>
+            <Authorized>
+                <a href="/my-groups" class="btn btn-cta">Go to My Groups</a>
+            </Authorized>
+            <NotAuthorized>
+                <a href="/Account/Register" class="btn btn-cta">Get Started Free</a>
+                <a href="/Account/Login" class="btn btn-cta-secondary">Log In</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</div>
+
+<div class="features">
+    <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <h3>Create Study Groups</h3>
+        <p>Start a group in seconds and invite classmates with a simple join code.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">✅</div>
+        <h3>Track Tasks Together</h3>
+        <p>Assign tasks, set due dates, and see what's done and what's pending at a glance.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3>Discuss & Collaborate</h3>
+        <p>Leave comments on tasks so your team stays in sync without a separate chat app.</p>
+    </div>
+</div>
+
+<div class="cta-footer">
+    <h2>Ready to keep your group on track?</h2>
+    <AuthorizeView>
+        <Authorized>
+            <a href="/my-groups" class="btn btn-cta">View My Groups</a>
+        </Authorized>
+        <NotAuthorized>
+            <a href="/Account/Register" class="btn btn-cta">Create Your Free Account</a>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>

@@ -1,0 +1,132 @@
+﻿@page "/my-groups"
+@using StudySync.Models
+@using StudySync.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject StudyGroupService GroupService
+@inject AuthenticationStateProvider AuthProvider
+@attribute [Authorize]
+
+<PageTitle>My Study Groups</PageTitle>
+
+<h1>My Study Groups</h1>
+
+@if (myGroups is null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (myGroups.Count == 0)
+{
+    <p>You are not part of any study groups yet. Create one or join with a code below.</p>
+}
+else
+{
+    <div class="group-list">
+        @foreach (var group in myGroups)
+        {
+            <div class="group-card">
+                <h3><a href="/groups/@group.Id">@group.Name</a></h3>
+                <p>@group.Description</p>
+                <small>Join Code: <strong>@group.JoinCode</strong></small>
+            </div>
+        }
+    </div>
+}
+
+<hr />
+
+<div class="row">
+    <div class="col">
+        <h2>Create a New Group</h2>
+        <EditForm Model="newGroup" OnValidSubmit="HandleCreateGroup" FormName="createGroup">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label">Group Name</label>
+                <InputText class="form-control" @bind-Value="newGroup.Name" />
+                <ValidationMessage For="() => newGroup.Name" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <InputTextArea class="form-control" @bind-Value="newGroup.Description" />
+            </div>
+            <button type="submit" class="btn btn-primary">Create Group</button>
+        </EditForm>
+    </div>
+
+    <div class="col">
+        <h2>Join an Existing Group</h2>
+        <EditForm Model="joinModel" OnValidSubmit="HandleJoinGroup" FormName="joinGroup">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label">Join Code</label>
+                <InputText class="form-control" @bind-Value="joinModel.JoinCode" />
+            </div>
+            <button type="submit" class="btn btn-secondary">Join Group</button>
+        </EditForm>
+        @if (!string.IsNullOrEmpty(joinMessage))
+        {
+            <p class="@(joinSuccess ? "text-success" : "text-danger")">@joinMessage</p>
+        }
+    </div>
+</div>
+
+@code {
+    private List<StudyGroup>? myGroups;
+    private string? currentUserId;
+
+    private CreateGroupModel newGroup = new();
+    private JoinGroupModel joinModel = new();
+    private string? joinMessage;
+    private bool joinSuccess;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (currentUserId is not null)
+        {
+            myGroups = await GroupService.GetUserGroupsAsync(currentUserId);
+        }
+    }
+
+    private async Task HandleCreateGroup()
+    {
+        if (currentUserId is null) return;
+
+        await GroupService.CreateGroupAsync(newGroup.Name, newGroup.Description, currentUserId);
+        newGroup = new CreateGroupModel();
+        myGroups = await GroupService.GetUserGroupsAsync(currentUserId);
+    }
+
+    private async Task HandleJoinGroup()
+    {
+        if (currentUserId is null) return;
+
+        var (success, message) = await GroupService.JoinGroupAsync(joinModel.JoinCode, currentUserId);
+        joinSuccess = success;
+        joinMessage = message;
+
+        if (success)
+        {
+            joinModel = new JoinGroupModel();
+            myGroups = await GroupService.GetUserGroupsAsync(currentUserId);
+        }
+    }
+
+    public class CreateGroupModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.StringLength(100)]
+        public string Name { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.StringLength(500)]
+        public string? Description { get; set; }
+    }
+
+    public class JoinGroupModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string JoinCode { get; set; } = string.Empty;
+    }
+}
