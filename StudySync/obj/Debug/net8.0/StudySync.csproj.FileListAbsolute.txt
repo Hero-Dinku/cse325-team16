@@ -139,3 +139,4 @@ C:\Users\herod\Documents\cse325-team16\StudySync\obj\Debug\net8.0\refint\StudySy
 C:\Users\herod\Documents\cse325-team16\StudySync\obj\Debug\net8.0\StudySync.pdb
 C:\Users\herod\Documents\cse325-team16\StudySync\obj\Debug\net8.0\StudySync.genruntimeconfig.cache
 C:\Users\herod\Documents\cse325-team16\StudySync\obj\Debug\net8.0\ref\StudySync.dll
+C:\Users\herod\Documents\cse325-team16\StudySync\obj\Debug\net8.0\StudySync.sourcelink.json
