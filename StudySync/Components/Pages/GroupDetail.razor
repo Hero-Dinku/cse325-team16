@@ -1,0 +1,324 @@
+﻿@page "/groups/{GroupId:int}"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using StudySync.Models
+@using StudySync.Services
+@inject StudyGroupService GroupService
+@inject TaskService Tasks
+@inject AuthenticationStateProvider AuthProvider
+@attribute [Authorize]
+
+<PageTitle>@(group?.Name ?? "Study Group") - StudySync</PageTitle>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert @(isError ? "alert-danger" : "alert-success")" role="alert">@message</div>
+}
+
+@if (loading)
+{
+    <p role="status"><em>Loading...</em></p>
+}
+else if (group is null)
+{
+    <div class="alert alert-warning" role="alert">That study group could not be found.</div>
+    <a href="/my-groups">Back to My Groups</a>
+}
+else if (!isMember)
+{
+    <div class="alert alert-danger" role="alert">You are not a member of this group. Ask a member for the join code.</div>
+    <a href="/my-groups">Back to My Groups</a>
+}
+else
+{
+    <a href="/my-groups">&larr; My Groups</a>
+    <h1>@group.Name</h1>
+    <p>@group.Description</p>
+    <p>
+        <small>
+            Join code: <strong>@group.JoinCode</strong> &middot;
+            Members: @string.Join(", ", members.Select(m => m.Name))
+        </small>
+    </p>
+
+    <h2>@(form.Id is null ? "Add a Task" : "Edit Task")</h2>
+    <EditForm Model="form" OnValidSubmit="SaveTask">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label for="task-title" class="form-label">Title</label>
+            <InputText id="task-title" class="form-control" @bind-Value="form.Title" />
+            <ValidationMessage For="() => form.Title" />
+        </div>
+        <div class="mb-3">
+            <label for="task-desc" class="form-label">Description (optional)</label>
+            <InputTextArea id="task-desc" class="form-control" @bind-Value="form.Description" />
+            <ValidationMessage For="() => form.Description" />
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label for="task-due" class="form-label">Due date</label>
+                <InputDate id="task-due" class="form-control" @bind-Value="form.DueDate" />
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="task-status" class="form-label">Status</label>
+                <InputSelect id="task-status" class="form-select" @bind-Value="form.Status">
+                    @foreach (var s in Enum.GetValues<TaskItemStatus>())
+                    {
+                        <option value="@s">@StatusLabel(s)</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="task-assignee" class="form-label">Assign to</label>
+                <InputSelect id="task-assignee" class="form-select" @bind-Value="form.AssignedToUserId">
+                    <option value="">Unassigned</option>
+                    @foreach (var m in members)
+                    {
+                        <option value="@m.UserId">@m.Name</option>
+                    }
+                </InputSelect>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">@(form.Id is null ? "Add Task" : "Save Changes")</button>
+        @if (form.Id is not null)
+        {
+            <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CancelEdit">Cancel</button>
+        }
+    </EditForm>
+
+    <h2 class="mt-4">Tasks</h2>
+    @if (taskList.Count == 0)
+    {
+        <p>No tasks yet. Add the first one above.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <caption class="visually-hidden">Tasks for @group.Name</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Task</th>
+                        <th scope="col">Assigned to</th>
+                        <th scope="col">Due</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in taskList)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@t.Title</strong>
+                                @if (!string.IsNullOrWhiteSpace(t.Description))
+                                {
+                                    <br /><small>@t.Description</small>
+                                }
+                            </td>
+                            <td>@MemberName(t.AssignedToUserId)</td>
+                            <td>
+                                @(t.DueDate?.ToString("MMM d, yyyy") ?? "No due date")
+                                @if (IsOverdue(t))
+                                {
+                                    <span class="badge bg-danger ms-1">Overdue</span>
+                                }
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" aria-label="Status for @t.Title" @onchange="e => ChangeStatus(t, e)">
+                                    @foreach (var s in Enum.GetValues<TaskItemStatus>())
+                                    {
+                                        <option value="@s" selected="@(t.Status == s)">@StatusLabel(s)</option>
+                                    }
+                                </select>
+                            </td>
+                            <td>
+                                @if (deleteConfirmId == t.Id)
+                                {
+                                    <button type="button" class="btn btn-sm btn-danger" @onclick="() => DeleteTask(t.Id)">Confirm delete</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelDelete">Cancel</button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(t)">Edit</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" aria-label="Delete @t.Title" @onclick="() => AskDelete(t.Id)">Delete</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int GroupId { get; set; }
+
+    private StudyGroup? group;
+    private List<TaskItem> taskList = new();
+    private List<MemberInfo> members = new();
+    private string? currentUserId;
+    private bool loading = true;
+    private bool isMember;
+    private string? message;
+    private bool isError;
+    private int? deleteConfirmId;
+    private TaskForm form = new();
+
+    // Loads the group, checks membership, then loads tasks and members.
+    protected override async Task OnParametersSetAsync()
+    {
+        loading = true;
+        try
+        {
+            var auth = await AuthProvider.GetAuthenticationStateAsync();
+            currentUserId = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            group = await GroupService.GetGroupByIdAsync(GroupId);
+
+            if (group is not null && currentUserId is not null)
+            {
+                isMember = await GroupService.IsUserMemberAsync(GroupId, currentUserId);
+                if (isMember) await LoadAsync();
+            }
+        }
+        catch (Exception)
+        {
+            Show("Something went wrong while loading this group. Please refresh and try again.", true);
+        }
+        loading = false;
+    }
+
+    private async Task LoadAsync()
+    {
+        taskList = await Tasks.GetTasksForGroupAsync(GroupId);
+        members = await Tasks.GetMembersAsync(GroupId);
+    }
+
+    private void Show(string text, bool error)
+    {
+        message = text;
+        isError = error;
+    }
+
+    private string MemberName(string? userId) =>
+        members.FirstOrDefault(m => m.UserId == userId)?.Name ?? "Unassigned";
+
+    private static string StatusLabel(TaskItemStatus s) => s switch
+    {
+        TaskItemStatus.NotStarted => "Not started",
+        TaskItemStatus.InProgress => "In progress",
+        _ => "Completed"
+    };
+
+    private static bool IsOverdue(TaskItem t) =>
+        t.DueDate is DateTime d && d.Date < DateTime.Today && t.Status != TaskItemStatus.Completed;
+
+    // Create or update, depending on whether the form holds an existing task id.
+    private async Task SaveTask()
+    {
+        if (currentUserId is null) return;
+        try
+        {
+            var item = new TaskItem
+            {
+                Id = form.Id ?? 0,
+                Title = form.Title.Trim(),
+                Description = form.Description,
+                DueDate = form.DueDate,
+                Status = form.Status,
+                AssignedToUserId = string.IsNullOrEmpty(form.AssignedToUserId) ? null : form.AssignedToUserId,
+                StudyGroupId = GroupId
+            };
+
+            var (ok, msg) = form.Id is null
+                ? await Tasks.CreateTaskAsync(item, currentUserId)
+                : await Tasks.UpdateTaskAsync(item, currentUserId);
+
+            Show(msg, !ok);
+            if (ok)
+            {
+                form = new TaskForm();
+                await LoadAsync();
+            }
+        }
+        catch (Exception)
+        {
+            Show("Something went wrong saving the task. Please try again.", true);
+        }
+    }
+
+    private void StartEdit(TaskItem t)
+    {
+        form = new TaskForm
+        {
+            Id = t.Id,
+            Title = t.Title,
+            Description = t.Description,
+            DueDate = t.DueDate,
+            Status = t.Status,
+            AssignedToUserId = t.AssignedToUserId
+        };
+        message = null;
+    }
+
+    private void CancelEdit() => form = new TaskForm();
+
+    private async Task ChangeStatus(TaskItem t, ChangeEventArgs e)
+    {
+        if (currentUserId is null || e.Value is null) return;
+        try
+        {
+            var status = Enum.Parse<TaskItemStatus>(e.Value.ToString()!);
+            var (ok, msg) = await Tasks.UpdateStatusAsync(t.Id, status, currentUserId);
+            Show(msg, !ok);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            Show("Something went wrong changing the status. Please try again.", true);
+        }
+    }
+
+    private void AskDelete(int id) => deleteConfirmId = id;
+    private void CancelDelete() => deleteConfirmId = null;
+
+    private async Task DeleteTask(int id)
+    {
+        if (currentUserId is null) return;
+        try
+        {
+            var (ok, msg) = await Tasks.DeleteTaskAsync(id, currentUserId);
+            Show(msg, !ok);
+            deleteConfirmId = null;
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            Show("Something went wrong deleting the task. Please try again.", true);
+        }
+    }
+
+    // Form model for adding/editing a task.
+    public class TaskForm
+    {
+        public int? Id { get; set; }
+
+        [Required(ErrorMessage = "Please enter a title.")]
+        [StringLength(150, ErrorMessage = "The title must be 150 characters or fewer.")]
+        public string Title { get; set; } = string.Empty;
+
+        [StringLength(1000, ErrorMessage = "The description must be 1000 characters or fewer.")]
+        public string? Description { get; set; }
+
+        public DateTime? DueDate { get; set; }
+        public TaskItemStatus Status { get; set; } = TaskItemStatus.NotStarted;
+        public string? AssignedToUserId { get; set; }
+    }
+}
+
